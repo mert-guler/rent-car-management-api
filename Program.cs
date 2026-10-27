@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using RentCarManagement.Api.Data;
+using RentCarManagement.Api.Models;
 using RentCarManagement.Api.Services;
 using Serilog;
 using System.Text.Json.Serialization;
@@ -20,7 +21,29 @@ try
     builder.Services.AddScoped<IRentalService, RentalService>();
     builder.Services.AddScoped<IPasswordService, PasswordService>();
     builder.Services.AddControllers().AddJsonOptions(options => options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles); builder.Services.AddEndpointsApiExplorer(); builder.Services.AddOpenApi();
-    var app = builder.Build(); app.UseSerilogRequestLogging(); if (app.Environment.IsDevelopment()) app.MapOpenApi(); app.UseExceptionHandler("/error"); app.UseAuthentication(); app.UseAuthorization(); app.MapControllers(); app.Run();
+    var app = builder.Build();
+    using (var scope = app.Services.CreateScope())
+    {
+        var db = scope.ServiceProvider.GetRequiredService<RentCarDbContext>();
+        await db.Database.MigrateAsync();
+        if (!await db.Vehicles.AnyAsync())
+        {
+            db.Vehicles.AddRange(
+                new Vehicle { Brand = "Toyota", Model = "Corolla", Year = 2023, Mileage = 18500, DailyRate = 1800, ExtraKilometerRate = 4, MaintenanceMileageThreshold = 30000 },
+                new Vehicle { Brand = "Renault", Model = "Clio", Year = 2022, Mileage = 24200, DailyRate = 1450, ExtraKilometerRate = 3, MaintenanceMileageThreshold = 30000 },
+                new Vehicle { Brand = "Fiat", Model = "Egea", Year = 2024, Mileage = 9200, DailyRate = 1600, ExtraKilometerRate = 3.5m, MaintenanceMileageThreshold = 20000 });
+            await db.SaveChangesAsync();
+        }
+    }
+    app.UseSerilogRequestLogging();
+    if (app.Environment.IsDevelopment()) app.MapOpenApi();
+    app.UseExceptionHandler("/error");
+    app.UseDefaultFiles();
+    app.UseStaticFiles();
+    app.UseAuthentication();
+    app.UseAuthorization();
+    app.MapControllers();
+    app.Run();
 }
 catch (Exception ex) { Log.Fatal(ex, "Application terminated unexpectedly"); }
 finally { Log.CloseAndFlush(); }

@@ -8,6 +8,8 @@
 2. Veritabanını oluşturun: `dotnet ef database update`
 3. API'yi başlatın: `dotnet run`
 
+Web arayüzü `http://localhost:5165` adresinde açılır. Uygulama başlangıçta migration'ları uygular ve araç tablosu boşsa deneme için üç örnek araç ekler. Arayüzden hesap oluşturup araçları görüntüleyebilir, kiralama başlatabilir, süre uzatabilir, iade yapabilir ve profil/ehliyet bilgilerini düzenleyebilirsiniz.
+
 OpenAPI belgesi geliştirme ortamında `/openapi/v1.json` adresinden açılır.
 
 ## Endpoint özeti

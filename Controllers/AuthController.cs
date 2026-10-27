@@ -17,6 +17,6 @@ public sealed class AuthController(RentCarDbContext db, IPasswordService passwor
 public sealed class ProfileController(RentCarDbContext db) : ControllerBase
 {
     private int UserId => int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
-    [HttpGet] public async Task<ActionResult<User>> Get() { var user = await db.Users.AsNoTracking().SingleOrDefaultAsync(x => x.Id == UserId); return user is null ? NotFound() : Ok(user); }
+    [HttpGet] public async Task<IActionResult> Get() { var user = await db.Users.AsNoTracking().Where(x => x.Id == UserId).Select(x => new { x.Id, x.FullName, x.Email, x.PhoneNumber, x.DriverLicenseNumber, x.DriverLicenseExpiry }).SingleOrDefaultAsync(); return user is null ? NotFound() : Ok(user); }
     [HttpPut] public async Task<IActionResult> Update(UpdateProfileRequest request) { var user = await db.Users.FindAsync(UserId); if (user is null) return NotFound(); user.FullName = request.FullName; user.PhoneNumber = request.PhoneNumber; user.DriverLicenseNumber = request.DriverLicenseNumber; user.DriverLicenseExpiry = request.DriverLicenseExpiry; await db.SaveChangesAsync(); return NoContent(); }
 }

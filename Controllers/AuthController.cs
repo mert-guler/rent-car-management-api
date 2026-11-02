@@ -7,16 +7,17 @@ using RentCarManagement.Api.Services;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.AspNetCore.RateLimiting;
 namespace RentCarManagement.Api.Controllers;
 [ApiController, Route("api/auth")]
 public sealed class AuthController(RentCarDbContext db, IPasswordService passwords, ITokenService tokens, IPasswordResetNotifier resetNotifier, IConfiguration configuration, ILogger<AuthController> logger) : ControllerBase
 {
-    [HttpPost("register")]
+    [HttpPost("register"), EnableRateLimiting("auth")]
     public async Task<ActionResult<TokenResponse>> Register(RegisterRequest request) { if (await db.Users.AnyAsync(x => x.Email == request.Email.ToLower())) return Conflict("Email is already registered."); if (request.NationalIdNumber is not null && await db.Users.AnyAsync(x => x.NationalIdNumber == request.NationalIdNumber)) return Conflict("National ID number is already registered."); var user = new User { FullName = request.FullName, Email = request.Email.ToLowerInvariant(), PasswordHash = passwords.Hash(request.Password), PhoneNumber = request.PhoneNumber, NationalIdNumber = request.NationalIdNumber, DriverLicenseExpiry = request.DriverLicenseExpiry }; db.Users.Add(user); await db.SaveChangesAsync(); return Ok(tokens.Create(user)); }
-    [HttpPost("login")]
+    [HttpPost("login"), EnableRateLimiting("auth")]
     public async Task<ActionResult<TokenResponse>> Login(LoginRequest request) { var user = await db.Users.SingleOrDefaultAsync(x => x.Email == request.Email.ToLower()); if (user is null || !passwords.Verify(request.Password, user.PasswordHash)) return Unauthorized("Invalid credentials."); return Ok(tokens.Create(user)); }
 
-    [HttpPost("forgot-password")]
+    [HttpPost("forgot-password"), EnableRateLimiting("auth")]
     public async Task<IActionResult> ForgotPassword(ForgotPasswordRequest request)
     {
         const string response = "If an account exists for this email, password reset instructions will be sent.";
@@ -41,7 +42,7 @@ public sealed class AuthController(RentCarDbContext db, IPasswordService passwor
         return Accepted(new { message = response });
     }
 
-    [HttpPost("reset-password")]
+    [HttpPost("reset-password"), EnableRateLimiting("auth")]
     public async Task<IActionResult> ResetPassword(ResetPasswordRequest request)
     {
         string tokenHash;

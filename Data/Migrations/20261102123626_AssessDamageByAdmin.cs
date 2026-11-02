@@ -1,12 +1,14 @@
-using System;
+﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace RentCarManagement.Api.Data.Migrations
 {
+    /// <inheritdoc />
     public partial class AssessDamageByAdmin : Migration
     {
+        /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<DateTime>(
@@ -16,9 +18,12 @@ namespace RentCarManagement.Api.Data.Migrations
                 nullable: true);
         }
 
+        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(name: "AssessedAt", table: "DamageReports");
+            migrationBuilder.DropColumn(
+                name: "AssessedAt",
+                table: "DamageReports");
         }
     }
 }

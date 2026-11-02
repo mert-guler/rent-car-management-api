@@ -57,8 +57,12 @@ Confirm that exactly your account shows `Admin`. Then sign out and sign in again
 - `POST /api/damages/rentals/{rentalId}`, `GET /api/damages`, `GET /api/damages/admin`, `PUT /api/damages/{id}/assess`, `POST /api/damages/{id}/pay`
 - `POST /api/contact`
 
+Authentication and public contact endpoints have per-IP request limits (10 authentication requests/minute; 5 contact submissions/minute). New registrations require an 8–128 character password. Passwords are salted and hashed with PBKDF2-HMAC-SHA256; new hashes use 600,000 iterations, while existing hashes retain their recorded iteration count so current accounts can still sign in.
+
 ## Demo behavior and data note
 
 Damage payments are simulated only: the customer reports a description, an admin reviews it and sets an amount, and the customer can mark it as paid in the demo. No payment provider is connected and no real money is charged. Rental pricing includes the daily rate, 200 km/day allowance, extra-kilometer charges, and late-return fees. Returning a vehicle beyond its maintenance-mileage threshold automatically marks it for maintenance.
 
-This is an educational/local demo, not a production service. National ID numbers and other profile data are stored in the local database; do not use real sensitive personal information or expose the app/database publicly. Configure SMTP and `App__PublicBaseUrl` before deploying password reset outside Development. Serilog writes to the console and the ignored `logs/` folder.
+This is an educational/local demo, not a production service. National ID numbers and other profile data are stored in the local database without field-level encryption, and browser JWTs are stored in local storage. Do not use real sensitive personal information or expose the app/database publicly. Before production, use a managed secret store, HTTPS, secure cookie-based token storage, encrypted sensitive data, SMTP, backups, and production-safe database migration/deployment procedures. Configure SMTP and `App__PublicBaseUrl` before deploying password reset outside Development. In Development, password reset links are written to the local application log; never share those logs. Serilog writes to the console and the ignored `logs/` folder.
+
+There is currently no automated test project in this repository. Validate the flows manually before a demo or submission; a successful build is not a substitute for automated behavior/security tests.

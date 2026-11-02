@@ -11,7 +11,8 @@ namespace RentCarManagement.Api.Services;
 public interface IPasswordService { string Hash(string password); bool Verify(string password, string hash); }
 public sealed class PasswordService : IPasswordService
 {
-    public string Hash(string password) { var salt = RandomNumberGenerator.GetBytes(16); var key = Rfc2898DeriveBytes.Pbkdf2(password, salt, 100_000, HashAlgorithmName.SHA256, 32); return $"100000.{Convert.ToBase64String(salt)}.{Convert.ToBase64String(key)}"; }
+    private const int CurrentIterations = 600_000;
+    public string Hash(string password) { var salt = RandomNumberGenerator.GetBytes(16); var key = Rfc2898DeriveBytes.Pbkdf2(password, salt, CurrentIterations, HashAlgorithmName.SHA256, 32); return $"{CurrentIterations}.{Convert.ToBase64String(salt)}.{Convert.ToBase64String(key)}"; }
     public bool Verify(string password, string hash) { var parts = hash.Split('.'); if (parts.Length != 3 || !int.TryParse(parts[0], out var iterations)) return false; var key = Rfc2898DeriveBytes.Pbkdf2(password, Convert.FromBase64String(parts[1]), iterations, HashAlgorithmName.SHA256, 32); return CryptographicOperations.FixedTimeEquals(key, Convert.FromBase64String(parts[2])); }
 }
 public interface ITokenService { TokenResponse Create(User user); }

@@ -53,7 +53,7 @@ Confirm that exactly your account shows `Admin`. Then sign out and sign in again
 - `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/forgot-password`, `POST /api/auth/reset-password`
 - `GET/PUT /api/profile`
 - `GET /api/vehicles`; admin-only `POST/PUT/DELETE /api/vehicles` and `POST /api/vehicles/{id}/maintenance`
-- `POST /api/rentals`, `GET /api/rentals`, `PUT /api/rentals/{id}/extend`, `POST /api/rentals/{id}/return`
+- `POST /api/rentals`, `GET /api/rentals`, `PUT /api/rentals/{id}/extend`, `POST /api/rentals/{id}/return`; admin-only `GET /api/rentals/admin` and `POST /api/rentals/admin/{id}/return`
 - `POST /api/damages/rentals/{rentalId}`, `GET /api/damages`, `GET /api/damages/admin`, `PUT /api/damages/{id}/assess`, `POST /api/damages/{id}/pay`
 - `POST /api/contact`
 

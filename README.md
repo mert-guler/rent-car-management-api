@@ -1,28 +1,64 @@
 # Rent Car Management API
 
-`.NET 10` ve SQL Server tabanlı araç kiralama Web API'sidir.
+A .NET 10 car-rental API and web interface backed by SQL Server. It includes JWT authentication, vehicle and rental management, profile updates, support requests, password reset, and Serilog logging.
 
-## Çalıştırma
+## Run locally (Windows / SQL Server Express)
 
-1. `appsettings.json` içindeki `DefaultConnection` değerini SQL Server ortamınıza göre güncelleyin.
-2. Veritabanını oluşturun: `dotnet ef database update`
-3. API'yi başlatın: `dotnet run`
+1. Install .NET 10 SDK and SQL Server. The default connection string targets `localhost\SQLEXPRESS` with Windows authentication; adjust `ConnectionStrings:DefaultConnection` in `appsettings.json` for your SQL Server instance if needed.
+2. Set a local JWT signing key using .NET User Secrets (never commit this key):
 
-Web arayüzü `http://localhost:5165` adresinde açılır. Uygulama başlangıçta migration'ları uygular ve araç tablosu boşsa deneme için üç örnek araç ekler. Arayüzden hesap oluşturup araçları görüntüleyebilir, kiralama başlatabilir, süre uzatabilir, iade yapabilir ve profil/ehliyet bilgilerini düzenleyebilirsiniz.
+   ```powershell
+   dotnet user-secrets init
+   dotnet user-secrets set "Jwt:Key" "<random secret of at least 32 bytes>"
+   ```
 
-OpenAPI belgesi geliştirme ortamında `/openapi/v1.json` adresinden açılır.
+   Generate a strong value, for example with a password manager. In production, provide the configuration as the `Jwt__Key` environment variable or through a secret manager. The application refuses to start if this secret is missing or shorter than 32 bytes.
+3. Apply migrations and start the app:
 
-## Endpoint özeti
+   ```powershell
+   dotnet ef database update
+   dotnet run
+   ```
 
-- `POST /api/auth/register`, `POST /api/auth/login`: kullanıcı kaydı ve JWT girişi
-- `GET/PUT /api/profile`: profil ve ehliyet bilgileri
-- `GET /api/vehicles`: araçları ve uygunluk durumlarını listeleme
-- `POST/PUT/DELETE /api/vehicles`: `Admin` rolü ile araç yönetimi
-- `POST /api/vehicles/{id}/maintenance`: bakım tamamlandı olarak işaretleme (`Admin`)
-- `POST /api/rentals`, `PUT /api/rentals/{id}/extend`, `POST /api/rentals/{id}/return`: kiralama akışı
-- `GET /api/rentals`: kullanıcının kiralama geçmişi
-- `POST /api/damages/rentals/{rentalId}`, `POST /api/damages/{id}/pay`: hasar bildirimi ve ödeme
+The web app is served at `http://localhost:5165` when using the included launch profile. On startup it applies pending migrations and seeds three sample cars if the vehicle table is empty. OpenAPI is available at `/openapi/v1.json` in Development.
 
-Kiralama ücretleri günlük araç ücreti, 200 km/gün dahil kilometre, ekstra kilometre ücreti ve geç iade ücretiyle hesaplanır. İade sırasında eşik kilometresi aşılmışsa araç otomatik olarak `Maintenance` durumuna alınır. Tüm kritik hatalar Serilog ile konsola ve `logs/` klasörüne yazılır.
+## Make your account an admin
 
-İlk admin hesabı için kayıt sonrası SQL Server'da ilgili kullanıcının `Role` alanını `Admin` yapın; üretimde JWT anahtarını mutlaka güvenli bir secret store üzerinden sağlayın.
+Register through the web app first. In SQL Server Management Studio (SSMS), connect to `localhost\SQLEXPRESS` using Windows Authentication, open a New Query window, and run the following after replacing the email with the exact address you registered:
+
+```sql
+USE RentCarManagementDb;
+GO
+
+SELECT Id, Email, Role
+FROM dbo.Users
+WHERE Email = 'your-registered-email@example.com';
+GO
+
+UPDATE dbo.Users
+SET Role = 'Admin'
+WHERE Email = 'your-registered-email@example.com';
+GO
+
+SELECT Id, Email, Role
+FROM dbo.Users
+WHERE Email = 'your-registered-email@example.com';
+GO
+```
+
+Confirm that exactly your account shows `Admin`. Then sign out and sign in again: the role is embedded in the JWT at login, so an already-issued token keeps its previous role. Admin-only vehicle management endpoints and the admin damage-review panel will then be available. Keep admin access limited to trusted accounts.
+
+## Main API routes
+
+- `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/forgot-password`, `POST /api/auth/reset-password`
+- `GET/PUT /api/profile`
+- `GET /api/vehicles`; admin-only `POST/PUT/DELETE /api/vehicles` and `POST /api/vehicles/{id}/maintenance`
+- `POST /api/rentals`, `GET /api/rentals`, `PUT /api/rentals/{id}/extend`, `POST /api/rentals/{id}/return`
+- `POST /api/damages/rentals/{rentalId}`, `GET /api/damages`, `GET /api/damages/admin`, `PUT /api/damages/{id}/assess`, `POST /api/damages/{id}/pay`
+- `POST /api/contact`
+
+## Demo behavior and data note
+
+Damage payments are simulated only: the customer reports a description, an admin reviews it and sets an amount, and the customer can mark it as paid in the demo. No payment provider is connected and no real money is charged. Rental pricing includes the daily rate, 200 km/day allowance, extra-kilometer charges, and late-return fees. Returning a vehicle beyond its maintenance-mileage threshold automatically marks it for maintenance.
+
+This is an educational/local demo, not a production service. National ID numbers and other profile data are stored in the local database; do not use real sensitive personal information or expose the app/database publicly. Configure SMTP and `App__PublicBaseUrl` before deploying password reset outside Development. Serilog writes to the console and the ignored `logs/` folder.

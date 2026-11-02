@@ -34,6 +34,9 @@ namespace RentCarManagement.Api.Data.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<DateTime?>("AssessedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -55,6 +58,40 @@ namespace RentCarManagement.Api.Data.Migrations
                     b.HasIndex("RentalId");
 
                     b.ToTable("DamageReports");
+                });
+
+            modelBuilder.Entity("RentCarManagement.Api.Models.PasswordResetToken", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime?>("UsedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("PasswordResetTokens");
                 });
 
             modelBuilder.Entity("RentCarManagement.Api.Models.Rental", b =>
@@ -106,6 +143,38 @@ namespace RentCarManagement.Api.Data.Migrations
                     b.ToTable("Rentals");
                 });
 
+            modelBuilder.Entity("RentCarManagement.Api.Models.SupportRequest", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("SupportRequests");
+                });
+
             modelBuilder.Entity("RentCarManagement.Api.Models.User", b =>
                 {
                     b.Property<int>("Id")
@@ -117,9 +186,6 @@ namespace RentCarManagement.Api.Data.Migrations
                     b.Property<DateTime?>("DriverLicenseExpiry")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("DriverLicenseNumber")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
@@ -127,6 +193,10 @@ namespace RentCarManagement.Api.Data.Migrations
                     b.Property<string>("FullName")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("NationalIdNumber")
+                        .HasMaxLength(11)
+                        .HasColumnType("nvarchar(11)");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
@@ -143,6 +213,10 @@ namespace RentCarManagement.Api.Data.Migrations
 
                     b.HasIndex("Email")
                         .IsUnique();
+
+                    b.HasIndex("NationalIdNumber")
+                        .IsUnique()
+                        .HasFilter("[NationalIdNumber] IS NOT NULL");
 
                     b.ToTable("Users");
                 });
@@ -200,6 +274,17 @@ namespace RentCarManagement.Api.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Rental");
+                });
+
+            modelBuilder.Entity("RentCarManagement.Api.Models.PasswordResetToken", b =>
+                {
+                    b.HasOne("RentCarManagement.Api.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("RentCarManagement.Api.Models.Rental", b =>

@@ -14,12 +14,15 @@ try
     var builder = WebApplication.CreateBuilder(args);
     builder.Host.UseSerilog((context, configuration) => configuration.ReadFrom.Configuration(context.Configuration).Enrich.FromLogContext().WriteTo.Console().WriteTo.File("logs/rent-car-.log", rollingInterval: RollingInterval.Day));
     builder.Services.AddDbContext<RentCarDbContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
-    var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("Jwt:Key is required.");
+    var jwtKey = builder.Configuration["Jwt:Key"];
+    if (string.IsNullOrWhiteSpace(jwtKey) || Encoding.UTF8.GetByteCount(jwtKey) < 32)
+        throw new InvalidOperationException("Jwt:Key must be configured as a secret with at least 32 bytes (use .NET User Secrets locally or Jwt__Key in production).");
     builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options => options.TokenValidationParameters = new TokenValidationParameters { ValidateIssuerSigningKey = true, IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)), ValidateIssuer = true, ValidIssuer = builder.Configuration["Jwt:Issuer"], ValidateAudience = true, ValidAudience = builder.Configuration["Jwt:Audience"], ValidateLifetime = true, ClockSkew = TimeSpan.FromMinutes(1) });
     builder.Services.AddAuthorization();
     builder.Services.AddScoped<ITokenService, TokenService>();
     builder.Services.AddScoped<IRentalService, RentalService>();
     builder.Services.AddScoped<IPasswordService, PasswordService>();
+    builder.Services.AddScoped<IPasswordResetNotifier, PasswordResetNotifier>();
     builder.Services.AddControllers().AddJsonOptions(options => options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles); builder.Services.AddEndpointsApiExplorer(); builder.Services.AddOpenApi();
     var app = builder.Build();
     using (var scope = app.Services.CreateScope())

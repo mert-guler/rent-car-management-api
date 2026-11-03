@@ -1,7 +1,12 @@
 bin/
 obj/
 logs/
+/.venv/
+/.venv-1/
 .vs/
 *.user
 *.suo
 appsettings.Local.json
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/

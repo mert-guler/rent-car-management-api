@@ -1,68 +1,77 @@
-# Rent Car Management API
+# Rent Car Management
 
-A .NET 10 car-rental API and web interface backed by SQL Server. It includes JWT authentication, vehicle and rental management, profile updates, support requests, password reset, and Serilog logging.
+A .NET 10 layered-monolith car rental application with a separate static web frontend and SQL Server persistence.
+
+## Structure
+
+```text
+frontend/                          React + TypeScript client (Vite)
+backend/
+  RentCarManagement.Api/           HTTP API, controllers, host configuration
+  RentCarManagement.Application/    Use cases, business rules, DTOs and repository/service interfaces
+  RentCarManagement.Domain/         Entities, enums and stable domain error codes
+  RentCarManagement.Infrastructure/ EF Core repositories, SQL Server, migrations and adapters
+  RentCarManagement.Api.Tests/      HTTP integration tests / test client
+RentCarManagement.sln
+```
+
+All backend projects run as one deployable application (a monolith). Controllers translate HTTP requests and claims into calls to Application services; Application owns workflows and business rules through repository interfaces; Infrastructure implements those interfaces with EF Core and SQL Server.
 
 ## Run locally (Windows / SQL Server Express)
 
-1. Install .NET 10 SDK and SQL Server. The default connection string targets `localhost\SQLEXPRESS` with Windows authentication; adjust `ConnectionStrings:DefaultConnection` in `appsettings.json` for your SQL Server instance if needed.
-2. Set a local JWT signing key using .NET User Secrets (never commit this key):
+1. Install the .NET 10 SDK and SQL Server Express.
+2. Install Node.js LTS. From the repository root, install and build the frontend:
 
    ```powershell
-   dotnet user-secrets init
+   cd frontend
+   npm install
+   npm run build
+   cd ..
+   ```
+3. Set the local JWT signing key using User Secrets from the API project directory:
+
+   ```powershell
+   cd backend/RentCarManagement.Api
    dotnet user-secrets set "Jwt:Key" "<random secret of at least 32 bytes>"
    ```
 
-   Generate a strong value, for example with a password manager. In production, provide the configuration as the `Jwt__Key` environment variable or through a secret manager. The application refuses to start if this secret is missing or shorter than 32 bytes.
-3. Apply migrations and start the app:
+   The existing User Secrets ID is retained. Never commit a real signing key.
+4. From the repository root, start the app:
 
    ```powershell
-   dotnet ef database update
-   dotnet run
+   dotnet run --project backend/RentCarManagement.Api
    ```
 
-The web app is served at `http://localhost:5165` when using the included launch profile. On startup it applies pending migrations and seeds three sample cars if the vehicle table is empty. OpenAPI is available at `/openapi/v1.json` in Development.
+The API serves the built React UI at `http://localhost:5165`. Rebuild the frontend with `npm run build` after UI changes. In Development, Swagger UI is at `http://localhost:5165/swagger` and the OpenAPI document is at `/openapi/v1.json`.
 
-## Make your account an admin
+## Database migration note
 
-Register through the web app first. In SQL Server Management Studio (SSMS), connect to `localhost\SQLEXPRESS` using Windows Authentication, open a New Query window, and run the following after replacing the email with the exact address you registered:
+The latest migration changes entity primary and foreign keys from integers to GUIDs. It creates new GUIDs and remaps existing rental, damage-report, and password-reset relationships, preserving existing rows. **Back up `RentCarManagementDb` before starting the updated application for the first time.** The migration is intentionally not reversible because old integer IDs are not retained; restore the backup to roll back. The app applies pending migrations at startup.
 
-```sql
-USE RentCarManagementDb;
-GO
+## Build and test
 
-SELECT Id, Email, Role
-FROM dbo.Users
-WHERE Email = 'your-registered-email@example.com';
-GO
+From the repository root:
 
-UPDATE dbo.Users
-SET Role = 'Admin'
-WHERE Email = 'your-registered-email@example.com';
-GO
-
-SELECT Id, Email, Role
-FROM dbo.Users
-WHERE Email = 'your-registered-email@example.com';
-GO
+```powershell
+dotnet build RentCarManagement.sln
+dotnet test RentCarManagement.sln
 ```
 
-Confirm that exactly your account shows `Admin`. Then sign out and sign in again: the role is embedded in the JWT at login, so an already-issued token keeps its previous role. Admin-only vehicle management endpoints and the admin damage-review panel will then be available. Keep admin access limited to trusted accounts.
+The test project uses `WebApplicationFactory` as an in-process HTTP test client and an in-memory database. It checks public vehicle listing, authentication on rental history, frontend delivery, and Swagger UI availability. Build the frontend before running API tests so the host has the generated static assets.
 
 ## Main API routes
 
 - `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/forgot-password`, `POST /api/auth/reset-password`
 - `GET/PUT /api/profile`
-- `GET /api/vehicles`; admin-only `POST/PUT/DELETE /api/vehicles` and `POST /api/vehicles/{id}/maintenance`
-- `POST /api/rentals`, `GET /api/rentals`, `PUT /api/rentals/{id}/extend`, `POST /api/rentals/{id}/return`; admin-only `GET /api/rentals/admin` and `POST /api/rentals/admin/{id}/return`
-- `POST /api/damages/rentals/{rentalId}`, `GET /api/damages`, `GET /api/damages/admin`, `PUT /api/damages/{id}/assess`, `POST /api/damages/{id}/pay`
+- `GET /api/vehicles`; admin-only `POST/PUT/DELETE /api/vehicles` and `POST /api/vehicles/{guid}/maintenance`
+- `POST /api/rentals`, `GET /api/rentals`, `PUT /api/rentals/{guid}/extend`, `POST /api/rentals/{guid}/return`; admin-only `GET /api/rentals/admin` and `POST /api/rentals/admin/{guid}/return`
+- `POST /api/damages/rentals/{guid}`, `GET /api/damages`, `GET /api/damages/admin`, `PUT /api/damages/{guid}/assess`, `POST /api/damages/{guid}/pay`
 - `POST /api/contact`
 
-Authentication and public contact endpoints have per-IP request limits (10 authentication requests/minute; 5 contact submissions/minute). New registrations require an 8–128 character password. Passwords are salted and hashed with PBKDF2-HMAC-SHA256; new hashes use 600,000 iterations, while existing hashes retain their recorded iteration count so current accounts can still sign in.
+Domain error codes are defined in `RentCarManagement.Domain/Errors/DomainError.cs`; API errors return a stable `code` alongside a human-readable message.
 
 ## Demo behavior and data note
 
-Damage payments are simulated only: the customer reports a description, an admin reviews it and sets an amount, and the customer can mark it as paid in the demo. No payment provider is connected and no real money is charged. Rental pricing includes the daily rate, 200 km/day allowance, extra-kilometer charges, and late-return fees. Returning a vehicle beyond its maintenance-mileage threshold automatically marks it for maintenance.
+Damage payments are simulated only. Rental pricing includes the daily rate, a 200 km/day allowance, excess-kilometer charges, and late-return fees. Returning a vehicle over its maintenance threshold marks it for maintenance.
 
-This is an educational/local demo, not a production service. National ID numbers and other profile data are stored in the local database without field-level encryption, and browser JWTs are stored in local storage. Do not use real sensitive personal information or expose the app/database publicly. Before production, use a managed secret store, HTTPS, secure cookie-based token storage, encrypted sensitive data, SMTP, backups, and production-safe database migration/deployment procedures. Configure SMTP and `App__PublicBaseUrl` before deploying password reset outside Development. In Development, password reset links are written to the local application log; never share those logs. Serilog writes to the console and the ignored `logs/` folder.
-
-There is currently no automated test project in this repository. Validate the flows manually before a demo or submission; a successful build is not a substitute for automated behavior/security tests.
+This is an educational/local demo, not a production service. National ID numbers are stored without field-level encryption and browser JWTs use local storage. Do not enter real sensitive data or expose the app/database publicly. Production use requires a security review, HTTPS, managed secrets, protection for personal data and tokens, SMTP, backups, and controlled database deployments.

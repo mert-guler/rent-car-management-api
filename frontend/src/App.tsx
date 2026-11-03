@@ -45,7 +45,13 @@ export default function App() {
     return data as T
   }, [token, t])
   const notify = useCallback((message: string, isError = false) => { setNotice(message); setError(isError); window.setTimeout(() => setNotice(''), 5000) }, [])
-  const loadCars = useCallback(async () => { try { setVehicles(await auth<Vehicle[]>('/api/vehicles')) } catch (e) { notify(e instanceof Error ? e.message : t('error'), true) } }, [auth, notify, t])
+  const loadCars = useCallback(async () => {
+    try {
+      const result = await auth<unknown>('/api/vehicles')
+      if (!Array.isArray(result)) throw new Error(t('error'))
+      setVehicles(result as Vehicle[])
+    } catch (e) { setVehicles([]); notify(e instanceof Error ? e.message : t('error'), true) }
+  }, [auth, notify, t])
   const loadAccount = useCallback(async () => {
     try {
       const [p, r, d] = await Promise.all([auth<Profile>('/api/profile'), auth<Rental[]>('/api/rentals'), auth<Damage[]>('/api/damages')])

@@ -4,6 +4,7 @@ using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.Extensions.FileProviders;
 using RentCarManagement.Infrastructure;
 using Serilog;
 
@@ -37,8 +38,12 @@ try
         app.UseSwaggerUI(options => options.SwaggerEndpoint("/openapi/v1.json", "RentCar API v1"));
     }
     app.UseExceptionHandler("/error");
-    app.UseDefaultFiles();
-    app.UseStaticFiles();
+    var frontendDistPath = Path.GetFullPath(Path.Combine(app.Environment.ContentRootPath, "..", "..", "frontend", "dist"));
+    var frontendFileProvider = app.Environment.IsDevelopment() && Directory.Exists(frontendDistPath)
+        ? new PhysicalFileProvider(frontendDistPath)
+        : app.Environment.WebRootFileProvider;
+    app.UseDefaultFiles(new DefaultFilesOptions { FileProvider = frontendFileProvider });
+    app.UseStaticFiles(new StaticFileOptions { FileProvider = frontendFileProvider });
     app.UseRouting();
     app.UseRateLimiter();
     app.UseAuthentication();
